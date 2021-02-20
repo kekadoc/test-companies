@@ -17,7 +17,7 @@
         app:layout_constraintTop_toTopOf="parent"/>
 
     <LinearLayout
-        android:id="@+id/messageNotFoundView"
+        android:id="@+id/messageDataError"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center"
@@ -49,7 +49,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:context=".ui.HomeFragment" />
+        tools:context=".ui.home.HomeFragment" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 

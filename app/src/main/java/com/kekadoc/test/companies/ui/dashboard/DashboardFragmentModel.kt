@@ -1,4 +1,4 @@
-package com.kekadoc.test.companies
+package com.kekadoc.test.companies.ui.dashboard
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -6,34 +6,28 @@ import androidx.lifecycle.ViewModel
 import com.kekadoc.test.companies.model.Company
 import com.kekadoc.test.companies.model.CompanyLoader
 
-class ActivityViewModel : ViewModel() {
-
-    companion object {
-        private const val TAG: String = "ActivityViewModel-TAG"
-    }
+class DashboardFragmentModel : ViewModel() {
 
     private val companyLoader = CompanyLoader.create()
-    private val companiesData = object : MutableLiveData<List<Company>>(emptyList()) {
-        override fun onActive() {
-            refreshData()
-        }
-    }
-    private var activeLoading: CompanyLoader.Loading? = null
+
+    private val companyData =  MutableLiveData<Company>(null)
+    private var activeLoading: CompanyLoader.Loading<*, *>? = null
     private val loadingProcess = MutableLiveData(false)
 
-    fun getCompanies(): LiveData<List<Company>> = companiesData
+    fun getCompany(): LiveData<Company> = companyData
     fun getLoadingProcess(): LiveData<Boolean> = loadingProcess
 
-    fun refreshData() {
+    fun loadCompany(id: Long) {
+        activeLoading?.cancel()
         loadingProcess.postValue(true)
-        activeLoading = companyLoader.load().apply {
+        activeLoading = companyLoader.load(id).apply {
             onComplete {
-                companiesData.value = it
+                companyData.value = it
                 activeLoading = null
                 loadingProcess.postValue(false)
             }
             onFail {
-                companiesData.value = data
+                companyData.value = data
                 activeLoading = null
                 loadingProcess.postValue(false)
             }
@@ -44,6 +38,7 @@ class ActivityViewModel : ViewModel() {
         super.onCleared()
         activeLoading?.cancel()
         activeLoading = null
+        loadingProcess.postValue(false)
     }
 
 }

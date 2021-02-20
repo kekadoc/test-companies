@@ -1,6 +1,7 @@
 package com.kekadoc.test.companies
 
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
@@ -9,20 +10,20 @@ import androidx.navigation.NavController
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStream
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.MalformedURLException
+import java.net.URL
 
 class MainActivity : AppCompatActivity() {
 
-    companion object {
-        private const val TAG: String = "MainActivity-TAG"
-    }
-
     private var navController: NavController? = null
     private var menuItemRefresh: MenuItem? = null
-    private var viewModel: ActivityViewModel? = null
 
-    fun setAccessRefreshAction(access: Boolean) {
-        menuItemRefresh?.isVisible = access
-    }
+    var onRefreshAction: (() -> Unit)? = null
 
     fun navigate(destination: Int, data: Bundle? = null) {
         navController?.navigate(destination, data)
@@ -31,11 +32,11 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        viewModel = ViewModelProvider(this).get(ActivityViewModel::class.java)
         navController = findNavController(R.id.nav_host_fragment).apply {
             val appBarConfiguration = AppBarConfiguration(graph)
             NavigationUI.setupActionBarWithNavController(this@MainActivity, this, appBarConfiguration)
         }
+
     }
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
@@ -49,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.menu_home, menu)
 
         this.menuItemRefresh = menu?.findItem(R.id.menu_item_refresh)?.setOnMenuItemClickListener {
-            viewModel?.refreshData()
+            onRefreshAction?.invoke()
             true
         }
         return true

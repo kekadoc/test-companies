@@ -1,9 +1,8 @@
-package com.kekadoc.test.companies.ui
+package com.kekadoc.test.companies.ui.home
 
 import android.content.Context
 import android.graphics.Rect
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,48 +19,69 @@ import coil.load
 import coil.request.Disposable
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.kekadoc.test.companies.*
-import com.kekadoc.test.companies.model.Company
+import com.kekadoc.test.companies.model.CompanyPreview
+import com.kekadoc.test.companies.ui.dashboard.DashboardFragment
 
 class HomeFragment : Fragment() {
 
-    private lateinit var activityViewModel: ActivityViewModel
+    private var viewModel: HomeFragmentModel? = null
     private var adapter: Adapter? = null
+
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var messageNotFoundView: View
+
+    private fun refreshCompaniesUI(companies: List<CompanyPreview>?) {
+        adapter?.submitList(companies)
+        if (companies == null || companies.isEmpty()) {
+            recyclerView.visibility = View.INVISIBLE
+            messageNotFoundView.visibility = View.VISIBLE
+        } else{
+            recyclerView.visibility = View.VISIBLE
+            messageNotFoundView.visibility = View.INVISIBLE
+        }
+    }
+    private fun refreshCompanies() {
+        viewModel?.refreshData()
+    }
 
     override fun onCreateView(
             inflater: LayoutInflater,
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View? {
-        val context = requireContext()
-        activityViewModel = ViewModelProvider(requireActivity()).get(ActivityViewModel::class.java)
         val root = inflater.inflate(R.layout.fragment_home, container, false)
-        val recyclerView = root.findViewById<RecyclerView>(R.id.recyclerView)
-        this.adapter = Adapter()
-        recyclerView.adapter = this.adapter
+        val progressIndicator = root.findViewById<LinearProgressIndicator>(R.id.progressIndicator)
+        recyclerView = root.findViewById(R.id.recyclerView)
+        messageNotFoundView= root.findViewById(R.id.messageDataError)
 
-        val space = Utils.dpToPx(context, 4f).toInt()
-        val rect = Rect(space, space, space, space)
-        recyclerView.addItemDecoration(ItemDecorator(rect))
+        viewModel = ViewModelProvider(requireActivity(), HomeFragmentModelFactory).get(HomeFragmentModel::class.java).apply {
+            this.getCompanies().observe(viewLifecycleOwner, {
+                refreshCompaniesUI(it)
+            })
+            getLoadingProcess().observe(viewLifecycleOwner, {
+                if (it) {
+                    messageNotFoundView.visibility = View.INVISIBLE
+                    progressIndicator.show()
+                }
+                else progressIndicator.hide()
+            })
+        }
 
-        (requireActivity() as MainActivity).setAccessRefreshAction(true)
+        recyclerView.apply {
+            this@HomeFragment.adapter = Adapter()
+            adapter = this@HomeFragment.adapter
+            val space = Utils.dpToPx(requireContext(), 4f).toInt()
+            val rect = Rect(space, space, space, space)
+            addItemDecoration(ItemDecorator(rect))
+        }
 
-        val progressIndicator: LinearProgressIndicator = root.findViewById(R.id.progressIndicator)
-        val messageNotFoundView: View = root.findViewById(R.id.messageNotFoundView)
-
-        activityViewModel.getCompanies().observe(viewLifecycleOwner, {
-            adapter?.submitList(it)
-            if (it.isEmpty()) {
-                recyclerView.visibility = View.INVISIBLE
-                messageNotFoundView.visibility = View.VISIBLE
-            } else{
-                recyclerView.visibility = View.VISIBLE
-                messageNotFoundView.visibility = View.INVISIBLE
+        val activity = requireActivity() as MainActivity
+        activity.apply {
+            onRefreshAction = {
+                refreshCompanies()
             }
-        })
-        activityViewModel.getLoadingProcess().observe(viewLifecycleOwner, {
-            if (it) progressIndicator.show()
-            else progressIndicator.hide()
-        })
+        }
+
         return root
     }
 
@@ -70,14 +90,14 @@ class HomeFragment : Fragment() {
         companion object {
             private const val TAG: String = "ViewHolder-TAG"
         }
-        var company: Company? = null
+        var company: CompanyPreview? = null
             set(value) {
                 val old = field
                 field = value
                 onCompanyChange(old, field)
             }
 
-        var onChoiceEvent: ((company: Company) -> Unit)? = null
+        var onChoiceEvent: ((company: CompanyPreview) -> Unit)? = null
 
         private var imageViewIcon: ImageView = itemView.findViewById(R.id.imageView)
         private var textViewName: TextView = itemView.findViewById(R.id.textView)
@@ -93,7 +113,7 @@ class HomeFragment : Fragment() {
             }
         }
 
-        protected open fun onCompanyChange(oldItem: Company?, newItem: Company?) {
+        protected open fun onCompanyChange(oldItem: CompanyPreview?, newItem: CompanyPreview?) {
             coilLoad?.dispose()
             if (newItem == null) {
                 imageViewIcon.setImageResource(getDefaultImageRes())
@@ -116,18 +136,18 @@ class HomeFragment : Fragment() {
 
     }
 
-    private class DiffItemCallback : DiffUtil.ItemCallback<Company>() {
+    private class DiffItemCallback : DiffUtil.ItemCallback<CompanyPreview>() {
 
-        override fun areItemsTheSame(oldItem: Company, newItem: Company): Boolean {
+        override fun areItemsTheSame(oldItem: CompanyPreview, newItem: CompanyPreview): Boolean {
             return oldItem.id == newItem.id
         }
-        override fun areContentsTheSame(oldItem: Company, newItem: Company): Boolean {
+        override fun areContentsTheSame(oldItem: CompanyPreview, newItem: CompanyPreview): Boolean {
             return oldItem == newItem
         }
 
     }
 
-    private inner class Adapter : ListAdapter<Company, ViewHolder>(DiffItemCallback()) {
+    private inner class Adapter : ListAdapter<CompanyPreview, ViewHolder>(DiffItemCallback()) {
 
         private var inflater: LayoutInflater? = null
 
@@ -143,7 +163,7 @@ class HomeFragment : Fragment() {
             ).apply {
                 onChoiceEvent = {
                     (activity as MainActivity).navigate(
-                        R.id.action_navigation_home_to_navigation_dashboard, DashboardFragment.createBundle(it)
+                        R.id.action_navigation_home_to_navigation_dashboard, DashboardFragment.createBundle(it.id)
                     )
                 }
             }

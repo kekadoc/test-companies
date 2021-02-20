@@ -1,21 +1,22 @@
 package com.kekadoc.test.companies.model
 
 import android.util.Log
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
+import com.google.gson.*
+import com.google.gson.annotations.SerializedName
+import retrofit2.*
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
+import retrofit2.http.Query
+import java.lang.reflect.Type
 
 const val defaultCompaniesUrl = "https://lifehack.studio/test_task/"
 
 class CompanyLoader(private val companiesUrl: String) {
 
     companion object {
+
         private const val TAG: String = "CompanyLoader-TAG"
 
-        @JvmStatic
         fun create(companiesUrl: String = defaultCompaniesUrl): CompanyLoader {
             return CompanyLoader(companiesUrl)
         }
@@ -32,37 +33,38 @@ class CompanyLoader(private val companiesUrl: String) {
         retrofit.create(CompaniesApi::class.java)
     }
 
-    fun load(): Loading {
-        val messages: Call<List<Company>> = companiesApi.companies()
-        return Loading(messages)
+    fun loadAll(): Loading<List<CompanyPreview>, List<CompanyPreview>> {
+        val call: Call<List<CompanyPreview>> = companiesApi.companies()
+        return AllCompanyLoader(call)
+    }
+    fun load(id: Long): Loading<List<Company>, Company> {
+        val messages: Call<List<Company>> = companiesApi.company(id)
+        return SingleCompanyLoader(messages)
     }
 
-    inner class Loading(private val call: Call<List<Company>>) {
+    abstract inner class Loading<CData, Data> internal constructor(protected val call: Call<CData>) {
 
-        private var onComplete: ((companies: List<Company>) -> Unit)? = null
+        private var onComplete: ((data: Data?) -> Unit)? = null
         private var onFail: ((error: Throwable) -> Unit)? = null
 
-        var data: List<Company> = emptyList()
+        var data: Data? = null
 
         init {
-            call.enqueue(object : Callback<List<Company>> {
-                override fun onResponse(call: Call<List<Company>>, response: Response<List<Company>>) {
-                    var data = response.body()
-                    if (data == null) data = emptyList()
-                    this@Loading.data = data
-                    data.forEach {
-                        it.imageUrl = companiesUrl + it.imageUrl
-                    }
+            call.enqueue(object : Callback<CData> {
+                override fun onResponse(call: Call<CData>, response: Response<CData>) {
+                    this@Loading.data = onComplete(response.body())
                     onComplete?.invoke(data)
                 }
-                override fun onFailure(call: Call<List<Company>>, t: Throwable) {
+
+                override fun onFailure(call: Call<CData>, t: Throwable) {
+                    onFail(t)
                     onFail?.invoke(t)
                     Log.e(TAG, "onFailure: ", t)
                 }
             })
         }
 
-        fun onComplete(l: ((companies: List<Company>) -> Unit)?) {
+        fun onComplete(l: ((data: Data?) -> Unit)?) {
             onComplete = l
         }
         fun onFail(l: ((error: Throwable) -> Unit)?) {
@@ -71,11 +73,54 @@ class CompanyLoader(private val companiesUrl: String) {
 
         fun cancel() = call.cancel()
 
+        protected abstract fun onComplete(data: CData?): Data?
+        protected open fun onFail(error: Throwable) {}
+
+    }
+
+    private inner class SingleCompanyLoader(call: Call<List<Company>>) : Loading<List<Company>, Company>(call) {
+        override fun onComplete(data: List<Company>?): Company? {
+            if (data == null || data.isEmpty()) return null
+            val company = data.firstOrNull()
+            company?.let {
+                it.imageUrl = companiesUrl + it.imageUrl
+            }
+            return company
+        }
+    }
+    private inner class AllCompanyLoader(call: Call<List<CompanyPreview>>) : Loading<List<CompanyPreview>, List<CompanyPreview>>(call) {
+        override fun onComplete(data: List<CompanyPreview>?): List<CompanyPreview>? {
+            data?.let {
+                it.forEach { company ->
+                    company.imageUrl = companiesUrl + company.imageUrl
+                }
+            }
+            return data
+        }
     }
 
 }
 
 interface CompaniesApi {
     @GET("test.php")
-    fun companies(): Call<List<Company>>
+    fun companies(): Call<List<CompanyPreview>>
+
+    @GET("test.php?")
+    fun company(@Query("id") id: Long): Call<List<Company>>
 }
+
+data class CompanyPreview(
+        @SerializedName("id") val id: Long? = 0,
+        @SerializedName("name") val name: String? = null,
+        @SerializedName("img") var imageUrl: String? = null
+)
+data class Company(
+        @SerializedName("id") val id: Long? = 0,
+        @SerializedName("name") val name: String? = null,
+        @SerializedName("img") var imageUrl: String? = null,
+        @SerializedName("description") var description: Any? = null,
+        @SerializedName("lat") var lat: Double? = null,
+        @SerializedName("lon") var lon: Double? = null,
+        @SerializedName("www") var www: String? = null,
+        @SerializedName("phone") var phone: String? = null
+)

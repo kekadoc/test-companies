@@ -4,5 +4,17 @@
     <string name="title_dashboard">About Company</string>
     <string name="company_null_name">Null</string>
     <string name="refresh">Refresh</string>
-    <string name="message_companies_null">Companies not found…</string>
+
+    <string name="message_companies_null">Компаний не найдено…</string>
+    <string name="message_company_null">Не удалось загрузить данные…</string>
+
+    <string name="company_id">ID: </string>
+    <string name="company_name">Name: </string>
+    <string name="company_description">Description: </string>
+    <string name="company_location">Location: </string>
+    <string name="company_web">Web: </string>
+    <string name="company_phone">Phone: </string>
+
+    <string name="nullValue">Null</string>
+
 </resources>
