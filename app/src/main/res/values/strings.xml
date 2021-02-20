@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Companies App</string>
+    <string name="title_home">Companies</string>
+    <string name="title_dashboard">About Company</string>
+    <string name="company_null_name">Null</string>
+    <string name="refresh">Refresh</string>
+    <string name="message_companies_null">Companies not found…</string>
+</resources>
